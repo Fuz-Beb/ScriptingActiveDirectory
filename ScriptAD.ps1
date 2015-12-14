@@ -75,14 +75,22 @@ function Create_Users {
 ####
 #
 
+### Test d'existence et création du dossier personnel des utilisateurs ainsi que ses permissions ###
 
-PARTIE REMY A COMPLETER ICI
-
-
-
+	if (-not (Test-Path $homeDirectory)) {
 
 
+	        ### Le dossier n'existe pas donc ### Création du dossier personnel Ex:"E:\share\nomDuUser" ### Ajout d'acl sur le dossier (ajout des permissions du users sur son dossier personnel
+		New-Item -ItemType directory  -Path $homeDirectory;
+		$acl = Get-Acl -Path $homeDirectory;
+                $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($tabCompte[1], "FullControl", "ContainerInherit, ObjectInherit", "None", "Allow")
+                $acl.SetAccessRule($rule);
+                Set-Acl -path $homeDirectory -AclObject $acl;
+	}
 
+        else {
+        	Write-Host "Le dossier de"$tabCompte[0] "existe déjà"
+        }
 #
 ####
 	            
@@ -95,16 +103,22 @@ PARTIE REMY A COMPLETER ICI
 #
 ###
 
+	### Affectation du chemin du dossier commun ###
+        $directoryAll = "E:\DATA\stages\bts\commun"
 
+            
+        ### Création du répertoire avec ses permissions ###
+	if (-not (Test-Path $directoryAll)) {
 
-
-PARTIE REMY A COMPLETER ICI
-
-
-
-
-
-
+        	New-Item -ItemType directory  -Path $directoryAll;
+                $acl = Get-Acl -Path $directoryAll;
+                $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("Tout le monde", "FullControl", "ContainerInherit, ObjectInherit", "None", "Allow")
+                $acl.SetAccessRule($rule);
+                Set-Acl -path $directoryAll -AclObject $acl;
+        }
+	else {
+		Write-Host "Le dossier commun existe déjà"
+        }
 
 #
 ####  
