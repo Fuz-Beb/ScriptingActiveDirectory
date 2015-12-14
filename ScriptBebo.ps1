@@ -51,22 +51,40 @@ Write-Host "--- [OK] --- Le partage $nom a été ajouté."
 ###
 function new_users {
 param([string]$parametres)
-$nom=$parametres[0]
-$nomComplet=$parametres[1]
-$description=$parametres[2]
 
-$compte=[ADSI]"WinNT://./$nom"
-if (!$compte.path){
-	$utilisateur=$local.create("user",$nom)
-	$utilisateur.InvokeSet("FullName",$nomComplet) 
-	$utilisateur.InvokeSet("Description",$description)
-	$utilisateur.CommitChanges() 
-	Write "--- [OK] --- L'utilisateur $nom a été ajouté."
-	}
-else{
-	Write-Host "--- [ERREUR] --- L'utilisateur $nom existe déjà ."
-	}
+
+$local=[ADSI]"WinNT://."
+
+$fichier="C:\testPowershell\listeCompte.txt"
+
+if (Test-Path $fichier){
+    $colLIgnes=Get-Content $fichier
+
+    foreach($ligne in $colLignes){
+        $tabCompte=$ligne.Split("/")
+        
+        $nom=$tabCompte[0]
+        $nomComplet=$tabCompte[1]
+        $description=$tabCompte[2]
+        
+        $compte=[ADSI]"WinNT://./$nom"
+        if (!$compte.path){
+            $utilisateur=$local.create("user",$nom)
+            $utilisateur.InvokeSet("FullName",$nomComplet) 
+            $utilisateur.InvokeSet("Description",$description)
+            $utilisateur.CommitChanges() 
+			Write "--- [OK] --- L'utilisateur $nom a été ajouté."
+        }
+        else{
+			Write-Host "--- [ERREUR] --- L'utilisateur $nom existe déjà ."
+        }
+    }
 }
+else{
+    Write-Host "$fichier pas trouvé"
+}
+
+
 # SOURCE : TP cours fichier ajoutCompteFIchierCorrection.ps1 (SISR5 BTS SIO 2013-2015)
 #
 ####
