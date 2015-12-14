@@ -1,10 +1,8 @@
 ﻿######
 #
-# But du script : CrÃ©er automatiquement les comptes et les ressources nÃ©cessaires Ã  la formation.
+# But du script : Créer automatiquement les comptes et les ressources nécessaires à la formation.
 #
 ######
-
-#--- PARTIE GENERALE :
 
 ####
 # [O-U] Création d'une unitée d'organisation
@@ -13,34 +11,32 @@
 # Une OU du nom de la formation est créée pour accueillir les comptes.
 #
 ###
-function new_ou {
+function Create_OU {
 param([string]$nom)
-New-ADOrganizationalUnit -Name $nom -Path "DC=GSB,DC=LOC,OU=stages,OU=$nom"
-Write-Host " La formation $nom a été ajouté ou est déja présente."
+    if(([adsi]::Exists("LDAP://OU=stage,DC=remy,DC=loc"))) {
+   
+        Write-Host "L'unité d'organisation stage existe déjà"
+    }
+    else {
+        NEW-ADOrganizationalUnit "stage"
+    }
+    
+    
+    
+    ### Création de l'OU "bts" ###
+    
+    if(([adsi]::Exists("LDAP://OU=bts,OU=stage,DC=remy,DC=loc"))) {
+   
+        Write-Host "L'unité d'organisation bts existe déjà"
+    }
+    else {
+        NEW-ADOrganizationalUnit "bts" -path "OU=stage,DC=remy,DC=loc"
+    }
 }
-# Source : https://technet.microsoft.com/fr-fr/library/dd378831%28v=ws.10%29.aspx
+
+Create_OU
 #
 ####
-
-
-####
-# [PERM+SHARE] Permissions NTFS/Partage
-#
-# (Description) x1 Répertoire de partage est créé pour permettre l'échange entre les différents stagiaires
-#
-###
-function new_partage {
-param([string]$nom)
-New-Item -Path C:\data\stages\$nom\commum -ItemType Directory
-New-SmbShare -Name commum -Path E:\commum -FullAccess Stagiaires -Description "Partage pour stagiaire" -encryptdata $true
-Write-Host "--- [OK] --- Le partage $nom a été ajouté."
-}
-# Source : http://informatique-windows.blogspot.fr/2015/04/creation-partage-powershell.html
-#
-####
-
-
-#--- PARTIE CONCERNANT LES USERS :
 
 ####
 #
@@ -49,64 +45,90 @@ Write-Host "--- [OK] --- Le partage $nom a été ajouté."
 # (Description) Chaque utilisateurs doit disposer d'un identifiant et d'un mot de passe, d'un répertoire personnel.
 #
 ###
-function new_users {
-param([string]$parametres)
+function Create_Users {
+    
+    ### Chemin vers le fichier contenant les comptes"
+    $fichier="C:\content.txt"
 
 
-$local=[ADSI]"WinNT://."
+    ### Parcours du fichier ###
+    if (Test-Path $fichier){
+        $colLIgnes=Get-Content $fichier
+    
+        foreach($ligne in $colLignes){
+            $tabCompte=$ligne.Split("/")
+            $var2=""+$tabCompte[1]+"";
+            
+            
+            ### Test d'existence du compte et création du compte
+            $checkUser = Get-ADUser -LDAPFilter "(sAMAccountName=$var2)"
+                       
+            if (!$checkUser) {
+                New-ADUser -Name $tabCompte[0] -Path "OU=bts,OU=stage,DC=remy,DC=loc" -SamAccountName $tabCompte[1] -AccountPassword(ConvertTo-SecureString "P@sswordP@ssword" -AsPlainText -Force) -ChangePasswordAtLogon $true -Enable $true;
+            }
+            else {
+                Write-Host "Le nom d'utilisateur" $tabCompte[1] "existe déjà";
+            }
 
-$fichier="C:\testPowershell\listeCompte.txt"
+            
+            #################  CREATION DU REPERTOIRE PERSONNEL DES UTILISATEURS AVEC PERMISSIONS  #################
+####
+#
 
-if (Test-Path $fichier){
-    $colLIgnes=Get-Content $fichier
 
-    foreach($ligne in $colLignes){
-        $tabCompte=$ligne.Split("/")
-        
-        $nom=$tabCompte[0]
-        $nomComplet=$tabCompte[1]
-        $description=$tabCompte[2]
-        
-        $compte=[ADSI]"WinNT://./$nom"
-        if (!$compte.path){
-            $utilisateur=$local.create("user",$nom)
-            $utilisateur.InvokeSet("FullName",$nomComplet) 
-            $utilisateur.InvokeSet("Description",$description)
-            $utilisateur.CommitChanges() 
-			Write "--- [OK] --- L'utilisateur $nom a été ajouté."
-        }
-        else{
-			Write-Host "--- [ERREUR] --- L'utilisateur $nom existe déjà ."
+PARTIE REMY A COMPLETER ICI
+
+
+
+
+
+
+#
+####
+	            
+            #################  CREATION DU REPERTOIRE COMMUN AVEC PERMISSIONS  #################
+            
+####
+# [PERM+SHARE] Permissions NTFS/Partage
+#
+# (Description) x1 Répertoire de partage est créé pour permettre l'échange entre les différents stagiaires
+#
+###
+
+
+
+
+PARTIE REMY A COMPLETER ICI
+
+
+
+
+
+
+
+#
+####  
+          
+            #################  AJOUT DES LECTEURS RESEAUX SUR LES COMPTES DES UTILISATEURS  #################
+####
+#
+            
+            ### Chemin réseau du répertoire de chaque users ###
+            $PathNetworkUsers = "\\Remy-pc\DATA\stages\bts\"+$tabCompte[0]+"";
+            
+            ### Affectation du lecteur aux users ###
+            SET-ADUSER -Identity $tabCompte[1] -HomeDirectory $PathNetworkUsers -HomeDrive 'Z:'
+            
+            
+            ### Chemin réseau du répertoire partagé de chaque users ###
+            $PathNetworkCommun = "\\Remy-pc\DATA\stages\bts\commun";
+            
+            ### Affectation du lecteur aux users ###
+            SET-ADUSER -Identity $tabCompte[1] -HomeDirectory $PathNetworkCommun -HomeDrive 'Z:' 
+#
+####			
         }
     }
 }
-else{
-    Write-Host "$fichier pas trouvé"
-}
 
-
-# SOURCE : TP cours fichier ajoutCompteFIchierCorrection.ps1 (SISR5 BTS SIO 2013-2015)
-#
-####
-
-####
-# [REP] Création des répertoires perso
-#
-# (Description)
-#
-###
-function new-folder {
-    param([string[]]$params)
-    $nom=$params[0]
-    $prenom=$params[1]
-    $nom_formation=$params[2]
-    $folderpath="C:\data\$nom_formation\$prenom.$nom"
-    $shares=[WMICLASS]'WIN32_Share'
-    $sharename="$prenom.$nom"
-}
-#
-####
-
-#
-# Proposer une politique de nommage des comptes et une politique de mot de passe pour les stagiaires de GSB.
-#
+Create_Users
